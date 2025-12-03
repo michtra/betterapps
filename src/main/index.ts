@@ -60,8 +60,12 @@ ipcMain.handle('load-data', async () => {
     const parsed = JSON.parse(data)
     console.log('Data loaded successfully. Applications:', parsed.applications?.length || 0)
     return parsed
-  } catch (error) {
-    console.log('No existing data file, starting fresh:', error)
+  } catch (error: any) {
+    if (error.code === 'ENOENT') {
+      console.log('No existing data file found, starting fresh')
+    } else {
+      console.error('Error loading data:', error)
+    }
     return { applications: [], folders: [], settings: { visibleColumns: [] } }
   }
 })

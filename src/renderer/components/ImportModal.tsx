@@ -38,9 +38,19 @@ export function ImportModal({ onImport, onClose }: Props) {
         }
         const workbook = XLSX.read(bytes, { type: 'array' })
         const firstSheet = workbook.Sheets[workbook.SheetNames[0]]
-        data = XLSX.utils.sheet_to_json(firstSheet)
+
+        // Parse with defval option to ensure all columns are captured
+        data = XLSX.utils.sheet_to_json(firstSheet, { defval: '' })
+
+        console.log('XLSX parsing debug:')
+        console.log('- Sheet names:', workbook.SheetNames)
+        console.log('- First sheet range:', firstSheet['!ref'])
+        console.log('- Parsed rows:', data.length)
+        console.log('- First row:', data[0])
+
         if (data.length > 0) {
           headers = Object.keys(data[0])
+          console.log('- Detected headers:', headers)
         }
       }
 

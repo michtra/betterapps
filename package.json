@@ -1,8 +1,12 @@
 {
-  "name": "betterapps",
+  "name": "clovern",
   "version": "1.0.0",
   "description": "job application tracker",
   "main": "out/main/index.js",
+  "author": {
+    "name": "michtra",
+    "email": "91438925+michtra@users.noreply.github.com"
+  },
   "scripts": {
     "dev": "electron-vite dev",
     "build": "electron-vite build",
@@ -15,8 +19,8 @@
     "update-and-build": "git pull && npm install && npm run build && npm run dist:mac"
   },
   "build": {
-    "appId": "com.betterapps.app",
-    "productName": "betterapps",
+    "appId": "com.clovern.app",
+    "productName": "clovern",
     "mac": {
       "target": ["dmg"],
       "category": "public.app-category.productivity",
@@ -41,7 +45,6 @@
     }
   },
   "keywords": [],
-  "author": "",
   "license": "MIT",
   "devDependencies": {
     "@types/papaparse": "^5.3.15",

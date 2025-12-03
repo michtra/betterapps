@@ -1,6 +1,8 @@
-# betterapps
+# clovern 🍀
 
 Electron app to track and organize j*b applications.
+
+possibly makes you luckier 🍀
 
 i made this for my friend Nicole
 
@@ -122,9 +124,9 @@ Your theme preferences are saved automatically.
 ## Data Storage
 
 Application data is stored locally in:
-- Linux: `~/.config/betterapps/job-applications.json`
-- macOS: `~/Library/Application Support/betterapps/job-applications.json`
-- Windows: `%APPDATA%/betterapps/job-applications.json`
+- Linux: `~/.config/clovern/job-applications.json`
+- macOS: `~/Library/Application Support/clovern/job-applications.json`
+- Windows: `%APPDATA%/clovern/job-applications.json`
 
 ## Tech Stack
 

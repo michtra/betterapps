@@ -372,7 +372,7 @@ function App() {
     <div className="app">
       <header className="header">
         <div className="header-title">
-          <h1>betterapps</h1>
+          <h1>clovern</h1>
         </div>
         <div className="header-actions">
           <button className="btn btn-secondary btn-small" onClick={() => setShowSettingsModal(true)}>
