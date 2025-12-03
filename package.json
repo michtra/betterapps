@@ -11,7 +11,8 @@
     "dist": "electron-builder",
     "dist:mac": "electron-builder --mac",
     "dist:linux": "electron-builder --linux",
-    "dist:win": "electron-builder --win"
+    "dist:win": "electron-builder --win",
+    "update-and-build": "git pull && npm install && npm run build && npm run dist:mac"
   },
   "build": {
     "appId": "com.betterapps.app",

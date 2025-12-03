@@ -118,7 +118,11 @@ function App() {
       folders: updatedFolders || folders,
       settings: { visibleColumns, darkMode, customColumns, accentColor, accentColorHover, backgroundColor, backgroundColorSecondary }
     }
-    await window.electronAPI.saveData(data)
+    const result = await window.electronAPI.saveData(data)
+    if (!result.success) {
+      console.error('Failed to save data:', result.error)
+      alert('Error saving data: ' + result.error)
+    }
   }
 
   const addApplication = (app: Omit<JobApplication, 'id' | 'createdAt' | 'updatedAt'>) => {

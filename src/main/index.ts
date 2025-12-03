@@ -55,18 +55,32 @@ app.on('activate', () => {
 // IPC Handlers
 ipcMain.handle('load-data', async () => {
   try {
+    console.log('Loading data from:', DATA_FILE)
     const data = await readFile(DATA_FILE, 'utf-8')
-    return JSON.parse(data)
+    const parsed = JSON.parse(data)
+    console.log('Data loaded successfully. Applications:', parsed.applications?.length || 0)
+    return parsed
   } catch (error) {
+    console.log('No existing data file, starting fresh:', error)
     return { applications: [], folders: [], settings: { visibleColumns: [] } }
   }
 })
 
 ipcMain.handle('save-data', async (_event, data) => {
   try {
+    console.log('Saving data to:', DATA_FILE)
+    console.log('Applications count:', data.applications?.length || 0)
+    console.log('Folders count:', data.folders?.length || 0)
+
+    // Ensure directory exists
+    const dir = join(app.getPath('userData'))
+    await fs.mkdir(dir, { recursive: true })
+
     await writeFile(DATA_FILE, JSON.stringify(data, null, 2))
+    console.log('Data saved successfully')
     return { success: true }
   } catch (error) {
+    console.error('Error saving data:', error)
     return { success: false, error: String(error) }
   }
 })
