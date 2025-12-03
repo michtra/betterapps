@@ -52,6 +52,19 @@ npm run dist
 
 The built packages will be in the `dist` directory.
 
+## GitHub Actions Setup
+
+The repository includes a GitHub Actions workflow for building macOS packages. To use it, you need to add a GitHub token:
+
+1. Go to your GitHub repository settings
+2. Navigate to Settings > Secrets and variables > Actions
+3. Click "New repository secret"
+4. Name: `GH_TOKEN`
+5. Value: Use your personal access token with `repo` permissions
+6. Click "Add secret"
+
+The workflow will automatically run on pushes to master, pull requests, or manually via workflow_dispatch.
+
 ## Usage
 
 ### Adding Applications
