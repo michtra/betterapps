@@ -50,20 +50,7 @@ Package for your current platform:
 npm run dist
 ```
 
-Package for specific platforms:
-```bash
-npm run dist:linux    # Creates AppImage and .deb
-npm run dist:mac      # Creates .dmg (unsigned from Linux)
-npm run dist:win      # Creates .exe installer
-```
-
 The built packages will be in the `dist` directory.
-
-#### Platform-Specific Notes
-
-- **Mac builds from Linux**: Will be unsigned and show security warnings. For proper Mac distribution, build on a Mac with a Developer certificate.
-- **Windows builds**: May require Wine on Linux for code signing.
-- **Linux builds**: AppImage works on all distributions. .deb for Debian/Ubuntu-based systems.
 
 ## Usage
 
