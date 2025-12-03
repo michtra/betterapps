@@ -1,0 +1,589 @@
+import { useState, useEffect, useMemo } from 'react'
+import './App.css'
+import {
+  JobApplication,
+  Folder,
+  AppData,
+  DEFAULT_COLUMNS,
+  ApplicationStatus,
+  STATUS_COLORS
+} from './types'
+import { ApplicationModal } from './components/ApplicationModal'
+import { ColumnToggle } from './components/ColumnToggle'
+import { ImportModal } from './components/ImportModal'
+import { FolderModal } from './components/FolderModal'
+import { CustomColumnsModal } from './components/CustomColumnsModal'
+import { SettingsModal } from './components/SettingsModal'
+import { DraggableRow } from './components/DraggableRow'
+import { DroppableFolder } from './components/DroppableFolder'
+import { DndContext, DragEndEvent, useSensor, useSensors, PointerSensor } from '@dnd-kit/core'
+import { CustomColumn } from './types'
+
+function App() {
+  const [applications, setApplications] = useState<JobApplication[]>([])
+  const [folders, setFolders] = useState<Folder[]>([])
+  const [visibleColumns, setVisibleColumns] = useState<string[]>(
+    DEFAULT_COLUMNS.filter(c => c.visible).map(c => c.id)
+  )
+  const [selectedFolder, setSelectedFolder] = useState<string | null>(null)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [showApplicationModal, setShowApplicationModal] = useState(false)
+  const [showColumnToggle, setShowColumnToggle] = useState(false)
+  const [showImportModal, setShowImportModal] = useState(false)
+  const [showFolderModal, setShowFolderModal] = useState(false)
+  const [showCustomColumnsModal, setShowCustomColumnsModal] = useState(false)
+  const [showSettingsModal, setShowSettingsModal] = useState(false)
+  const [customColumns, setCustomColumns] = useState<CustomColumn[]>([])
+  const [editingApplication, setEditingApplication] = useState<JobApplication | null>(null)
+  const [sortBy, setSortBy] = useState<keyof JobApplication>('dateApplied')
+  const [sortDesc, setSortDesc] = useState(true)
+  const [showExportDropdown, setShowExportDropdown] = useState(false)
+  const [darkMode, setDarkMode] = useState(true)
+  const [accentColor, setAccentColor] = useState('#3b82f6')
+  const [accentColorHover, setAccentColorHover] = useState('#2563eb')
+  const [backgroundColor, setBackgroundColor] = useState('#f8f9fa')
+  const [backgroundColorSecondary, setBackgroundColorSecondary] = useState('#ffffff')
+  const [draggedApp, setDraggedApp] = useState<JobApplication | null>(null)
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    })
+  )
+
+  useEffect(() => {
+    loadData()
+  }, [])
+
+  useEffect(() => {
+    if (darkMode) {
+      document.body.classList.add('dark-mode')
+    } else {
+      document.body.classList.remove('dark-mode')
+    }
+  }, [darkMode])
+
+  useEffect(() => {
+    document.documentElement.style.setProperty('--accent-color', accentColor)
+    document.documentElement.style.setProperty('--accent-color-hover', accentColorHover)
+    document.documentElement.style.setProperty('--bg-primary', backgroundColor)
+    document.documentElement.style.setProperty('--bg-secondary', backgroundColorSecondary)
+  }, [accentColor, accentColorHover, backgroundColor, backgroundColorSecondary])
+
+  useEffect(() => {
+    saveData()
+  }, [darkMode, visibleColumns, customColumns, accentColor, accentColorHover, backgroundColor, backgroundColorSecondary])
+
+  const loadData = async () => {
+    const data: AppData = await window.electronAPI.loadData()
+    setApplications(data.applications || [])
+    setFolders(data.folders || [])
+    if (data.settings?.visibleColumns?.length > 0) {
+      setVisibleColumns(data.settings.visibleColumns)
+    }
+    if (data.settings?.darkMode !== undefined) {
+      setDarkMode(data.settings.darkMode)
+    }
+    if (data.settings?.customColumns) {
+      setCustomColumns(data.settings.customColumns)
+    }
+    if (data.settings?.accentColor) {
+      setAccentColor(data.settings.accentColor)
+    }
+    if (data.settings?.accentColorHover) {
+      setAccentColorHover(data.settings.accentColorHover)
+    }
+    if (data.settings?.backgroundColor) {
+      setBackgroundColor(data.settings.backgroundColor)
+    }
+    if (data.settings?.backgroundColorSecondary) {
+      setBackgroundColorSecondary(data.settings.backgroundColorSecondary)
+    }
+  }
+
+  const saveData = async (updatedApplications?: JobApplication[], updatedFolders?: Folder[]) => {
+    const data: AppData = {
+      applications: updatedApplications || applications,
+      folders: updatedFolders || folders,
+      settings: { visibleColumns, darkMode, customColumns, accentColor, accentColorHover, backgroundColor, backgroundColorSecondary }
+    }
+    await window.electronAPI.saveData(data)
+  }
+
+  const addApplication = (app: Omit<JobApplication, 'id' | 'createdAt' | 'updatedAt'>) => {
+    const newApp: JobApplication = {
+      ...app,
+      id: crypto.randomUUID(),
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    }
+    const updated = [...applications, newApp]
+    setApplications(updated)
+    saveData(updated)
+  }
+
+  const updateApplication = (id: string, updates: Partial<JobApplication>) => {
+    const updated = applications.map(app =>
+      app.id === id ? { ...app, ...updates, updatedAt: new Date().toISOString() } : app
+    )
+    setApplications(updated)
+    saveData(updated)
+  }
+
+  const deleteApplication = (id: string) => {
+    const updated = applications.filter(app => app.id !== id)
+    setApplications(updated)
+    saveData(updated)
+  }
+
+  const addFolder = (name: string, color: string) => {
+    const newFolder: Folder = {
+      id: crypto.randomUUID(),
+      name,
+      color,
+      createdAt: new Date().toISOString()
+    }
+    const updated = [...folders, newFolder]
+    setFolders(updated)
+    saveData(undefined, updated)
+  }
+
+  const deleteFolder = (id: string) => {
+    const updatedFolders = folders.filter(f => f.id !== id)
+    const updatedApplications = applications.map(app =>
+      app.folderId === id ? { ...app, folderId: null } : app
+    )
+    setFolders(updatedFolders)
+    setApplications(updatedApplications)
+    if (selectedFolder === id) {
+      setSelectedFolder(null)
+    }
+    saveData(updatedApplications, updatedFolders)
+  }
+
+  const filteredApplications = useMemo(() => {
+    let filtered = applications
+
+    if (selectedFolder !== null) {
+      filtered = filtered.filter(app => app.folderId === selectedFolder)
+    }
+
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase()
+      filtered = filtered.filter(app =>
+        app.company.toLowerCase().includes(query) ||
+        app.position.toLowerCase().includes(query) ||
+        app.notes.toLowerCase().includes(query) ||
+        app.location.toLowerCase().includes(query)
+      )
+    }
+
+    return filtered.sort((a, b) => {
+      let aVal: any
+      let bVal: any
+
+      // Check if it's a custom column
+      if (sortBy.toString().startsWith('custom_')) {
+        aVal = a.customFields?.[sortBy] || ''
+        bVal = b.customFields?.[sortBy] || ''
+
+        // Find the custom column type
+        const customCol = customColumns.find(col => col.id === sortBy)
+        if (customCol?.type === 'number') {
+          aVal = parseFloat(aVal) || 0
+          bVal = parseFloat(bVal) || 0
+        } else if (customCol?.type === 'date') {
+          aVal = new Date(aVal || 0).getTime()
+          bVal = new Date(bVal || 0).getTime()
+        }
+      } else {
+        aVal = a[sortBy] || ''
+        bVal = b[sortBy] || ''
+
+        // Handle date columns
+        if (sortBy === 'dateApplied' || sortBy === 'deadline' || sortBy === 'createdAt' || sortBy === 'updatedAt') {
+          aVal = new Date(aVal || 0).getTime()
+          bVal = new Date(bVal || 0).getTime()
+        }
+      }
+
+      const comparison = aVal > bVal ? 1 : aVal < bVal ? -1 : 0
+      return sortDesc ? -comparison : comparison
+    })
+  }, [applications, selectedFolder, searchQuery, sortBy, sortDesc, customColumns])
+
+  const handleSort = (column: keyof JobApplication) => {
+    if (sortBy === column) {
+      setSortDesc(!sortDesc)
+    } else {
+      setSortBy(column)
+      setSortDesc(false)
+    }
+  }
+
+  const handleExport = async (format: 'csv' | 'xlsx') => {
+    let data: string
+
+    if (format === 'csv') {
+      const headers = visibleColumns.join(',')
+      const rows = filteredApplications.map(app =>
+        visibleColumns.map(col => {
+          const value = app[col as keyof JobApplication]
+          return typeof value === 'string' && value.includes(',') ? `"${value}"` : value
+        }).join(',')
+      )
+      data = [headers, ...rows].join('\n')
+    } else {
+      const XLSX = await import('xlsx')
+      const worksheet = XLSX.utils.json_to_sheet(
+        filteredApplications.map(app => {
+          const obj: any = {}
+          visibleColumns.forEach(col => {
+            const config = DEFAULT_COLUMNS.find(c => c.id === col)
+            obj[config?.label || col] = app[col as keyof JobApplication]
+          })
+          return obj
+        })
+      )
+      const workbook = XLSX.utils.book_new()
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Applications')
+      data = XLSX.write(workbook, { type: 'base64', bookType: 'xlsx' })
+    }
+
+    await window.electronAPI.exportFile(data, format)
+  }
+
+  const handleEdit = (app: JobApplication) => {
+    setEditingApplication(app)
+    setShowApplicationModal(true)
+  }
+
+  const handleModalClose = () => {
+    setShowApplicationModal(false)
+    setEditingApplication(null)
+  }
+
+  const handleDragStart = (event: any) => {
+    const app = applications.find(a => a.id === event.active.id)
+    setDraggedApp(app || null)
+  }
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event
+    setDraggedApp(null)
+
+    if (!over) return
+
+    const appId = active.id as string
+    const folderId = over.id === 'all' ? null : over.id as string
+
+    const app = applications.find(a => a.id === appId)
+    if (app && app.folderId !== folderId) {
+      updateApplication(appId, { folderId })
+    }
+  }
+
+  const visibleColumnsConfig = DEFAULT_COLUMNS.filter(col => visibleColumns.includes(col.id))
+  const visibleCustomColumns = customColumns.filter(col => col.visible)
+  const allVisibleColumns = [...visibleColumnsConfig, ...visibleCustomColumns.map(col => ({ ...col, id: col.id as any }))]
+
+  return (
+    <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+    <div className="app">
+      <header className="header">
+        <div className="header-title">
+          <h1>betterapps</h1>
+        </div>
+        <div className="header-actions">
+          <button className="btn btn-secondary btn-small" onClick={() => setShowSettingsModal(true)}>
+            Settings
+          </button>
+          <button className="btn btn-secondary btn-small" onClick={() => setShowColumnToggle(true)}>
+            Filter
+          </button>
+          <button className="btn btn-secondary btn-small" onClick={() => setShowCustomColumnsModal(true)}>
+            Modify Fields
+          </button>
+          <button className="btn btn-secondary btn-small" onClick={() => setShowImportModal(true)}>
+            Import
+          </button>
+          <div className="dropdown">
+            <button
+              className="btn btn-secondary btn-small"
+              onClick={() => setShowExportDropdown(!showExportDropdown)}
+            >
+              Export
+            </button>
+            {showExportDropdown && (
+              <div className="dropdown-content">
+                <button className="dropdown-item" onClick={() => { handleExport('csv'); setShowExportDropdown(false); }}>
+                  Export as CSV
+                </button>
+                <button className="dropdown-item" onClick={() => { handleExport('xlsx'); setShowExportDropdown(false); }}>
+                  Export as XLSX
+                </button>
+              </div>
+            )}
+          </div>
+          <button className="btn btn-primary" onClick={() => setShowApplicationModal(true)}>
+            + New Application
+          </button>
+        </div>
+      </header>
+
+      <div className="main-content">
+        <aside className="sidebar">
+          <div className="sidebar-section">
+            <h3>Folders</h3>
+            <ul className="folder-list">
+              <DroppableFolder
+                id="all"
+                className={`folder-item ${selectedFolder === null ? 'active' : ''}`}
+              >
+                <span className="folder-name" onClick={() => setSelectedFolder(null)}>All Applications</span>
+                <span className="folder-count" onClick={() => setSelectedFolder(null)}>{applications.length}</span>
+              </DroppableFolder>
+              {folders.map(folder => (
+                <DroppableFolder
+                  key={folder.id}
+                  id={folder.id}
+                  className={`folder-item ${selectedFolder === folder.id ? 'active' : ''}`}
+                >
+                  <div className="folder-color" style={{ backgroundColor: folder.color }} />
+                  <span className="folder-name" onClick={() => setSelectedFolder(folder.id)}>{folder.name}</span>
+                  <span className="folder-count" onClick={() => setSelectedFolder(folder.id)}>
+                    {applications.filter(app => app.folderId === folder.id).length}
+                  </span>
+                  <button
+                    className="folder-delete"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      if (confirm(`Delete folder "${folder.name}"? Applications will be moved to "All Applications".`)) {
+                        deleteFolder(folder.id)
+                      }
+                    }}
+                    title="Delete folder"
+                  >
+                    ×
+                  </button>
+                </DroppableFolder>
+              ))}
+            </ul>
+            <button
+              className="btn btn-secondary btn-small"
+              style={{ marginTop: '12px', width: '100%' }}
+              onClick={() => setShowFolderModal(true)}
+            >
+              + New Folder
+            </button>
+          </div>
+        </aside>
+
+        <div className="content-area">
+          <div className="toolbar">
+            <div className="search-box">
+              <input
+                type="text"
+                className="search-input"
+                placeholder="Search applications..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
+          </div>
+
+          <div className="table-container">
+            {filteredApplications.length === 0 ? (
+              <div className="empty-state">
+                <h3>No applications yet.</h3>
+                <button className="btn btn-primary" onClick={() => setShowApplicationModal(true)}>
+                  + New Application
+                </button>
+              </div>
+            ) : (
+              <table className="applications-table">
+                <thead>
+                  <tr>
+                    {allVisibleColumns.map(col => (
+                      <th key={col.id} onClick={() => handleSort(col.id as any)}>
+                        {col.label} {sortBy === col.id && (sortDesc ? '↓' : '↑')}
+                      </th>
+                    ))}
+                    <th style={{ width: '80px' }}>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredApplications.map(app => (
+                    <DraggableRow key={app.id} id={app.id} onClick={() => handleEdit(app)}>
+                      {allVisibleColumns.map(col => (
+                        <td key={col.id}>
+                          {col.id === 'status' ? (
+                            <span
+                              className="status-badge"
+                              style={{ backgroundColor: STATUS_COLORS[app.status] }}
+                            >
+                              {app.status}
+                            </span>
+                          ) : col.id === 'link' && app.link ? (
+                            <a
+                              href={app.link.startsWith('http') ? app.link : `https://${app.link}`}
+                              className="link-cell"
+                              onClick={(e) => e.stopPropagation()}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                            >
+                              {app.link}
+                            </a>
+                          ) : col.id === 'location' && app.location ? (
+                            <span className="location-cell">
+                              {app.location}
+                              {app.location && (
+                                <a
+                                  href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(app.location)}`}
+                                  className="map-link"
+                                  onClick={(e) => e.stopPropagation()}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  title="View on Google Maps"
+                                >
+                                  📍
+                                </a>
+                              )}
+                            </span>
+                          ) : col.id === 'folderId' ? (
+                            app.folderId ? (
+                              <span className="folder-badge" style={{
+                                backgroundColor: folders.find(f => f.id === app.folderId)?.color || '#6b7280',
+                                color: 'white',
+                                padding: '4px 12px',
+                                borderRadius: '12px',
+                                fontSize: '12px',
+                                fontWeight: '500'
+                              }}>
+                                {folders.find(f => f.id === app.folderId)?.name || 'Unknown'}
+                              </span>
+                            ) : (
+                              <span style={{ color: '#9ca3af', fontSize: '13px' }}>No folder</span>
+                            )
+                          ) : col.id.toString().startsWith('custom_') ? (
+                            app.customFields?.[col.id] || ''
+                          ) : (
+                            app[col.id]
+                          )}
+                        </td>
+                      ))}
+                      <td>
+                        <button
+                          className="delete-btn"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            if (confirm('Delete this application?')) {
+                              deleteApplication(app.id)
+                            }
+                          }}
+                        >
+                          Delete
+                        </button>
+                      </td>
+                    </DraggableRow>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {showApplicationModal && (
+        <ApplicationModal
+          application={editingApplication}
+          folders={folders}
+          customColumns={customColumns}
+          onSave={(app) => {
+            if (editingApplication) {
+              updateApplication(editingApplication.id, app)
+            } else {
+              addApplication(app)
+            }
+            handleModalClose()
+          }}
+          onClose={handleModalClose}
+        />
+      )}
+
+      {showColumnToggle && (
+        <ColumnToggle
+          columns={DEFAULT_COLUMNS}
+          customColumns={customColumns}
+          visibleColumns={visibleColumns}
+          onToggle={(columnId) => {
+            const updated = visibleColumns.includes(columnId)
+              ? visibleColumns.filter(id => id !== columnId)
+              : [...visibleColumns, columnId]
+            setVisibleColumns(updated)
+            saveData()
+          }}
+          onToggleCustom={(columnId) => {
+            const updated = customColumns.map(col =>
+              col.id === columnId ? { ...col, visible: !col.visible } : col
+            )
+            setCustomColumns(updated)
+          }}
+          onClose={() => setShowColumnToggle(false)}
+        />
+      )}
+
+      {showImportModal && (
+        <ImportModal
+          onImport={(importedApps) => {
+            const updated = [...applications, ...importedApps]
+            setApplications(updated)
+            saveData(updated)
+            setShowImportModal(false)
+          }}
+          onClose={() => setShowImportModal(false)}
+        />
+      )}
+
+      {showFolderModal && (
+        <FolderModal
+          onSave={(name, color) => {
+            addFolder(name, color)
+            setShowFolderModal(false)
+          }}
+          onClose={() => setShowFolderModal(false)}
+        />
+      )}
+
+      {showCustomColumnsModal && (
+        <CustomColumnsModal
+          columns={customColumns}
+          onSave={(columns) => {
+            setCustomColumns(columns)
+            setShowCustomColumnsModal(false)
+          }}
+          onClose={() => setShowCustomColumnsModal(false)}
+        />
+      )}
+
+      {showSettingsModal && (
+        <SettingsModal
+          settings={{ darkMode, accentColor, accentColorHover, backgroundColor, backgroundColorSecondary }}
+          onSave={(settings) => {
+            setDarkMode(settings.darkMode)
+            if (settings.accentColor) setAccentColor(settings.accentColor)
+            if (settings.accentColorHover) setAccentColorHover(settings.accentColorHover)
+            if (settings.backgroundColor) setBackgroundColor(settings.backgroundColor)
+            if (settings.backgroundColorSecondary) setBackgroundColorSecondary(settings.backgroundColorSecondary)
+          }}
+          onClose={() => setShowSettingsModal(false)}
+        />
+      )}
+    </div>
+    </DndContext>
+  )
+}
+
+export default App
