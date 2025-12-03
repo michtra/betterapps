@@ -5,6 +5,8 @@ interface SettingsModalProps {
   settings: ThemeSettings
   onSave: (settings: ThemeSettings) => void
   onClose: () => void
+  onClearAllApplications?: () => void
+  applicationCount?: number
 }
 
 const ACCENT_COLORS = [
@@ -37,7 +39,7 @@ const BACKGROUND_PRESETS = {
   ]
 }
 
-export const SettingsModal = ({ settings, onSave, onClose }: SettingsModalProps) => {
+export const SettingsModal = ({ settings, onSave, onClose, onClearAllApplications, applicationCount = 0 }: SettingsModalProps) => {
   const [darkMode, setDarkMode] = useState(settings.darkMode ?? true)
   const [accentColor, setAccentColor] = useState(settings.accentColor ?? '#3b82f6')
   const [accentColorHover, setAccentColorHover] = useState(settings.accentColorHover ?? '#2563eb')
@@ -194,6 +196,37 @@ export const SettingsModal = ({ settings, onSave, onClose }: SettingsModalProps)
                   </div>
                 </div>
               </div>
+            </div>
+          </div>
+
+          <div className="settings-section">
+            <h3 className="settings-section-title">Data Management</h3>
+
+            <div className="setting-item">
+              <div className="setting-info">
+                <label className="setting-label">Clear All Applications</label>
+                <p className="setting-description">
+                  Permanently delete all {applicationCount} application{applicationCount !== 1 ? 's' : ''}. This action cannot be undone.
+                </p>
+              </div>
+              <button
+                className="btn btn-secondary"
+                onClick={() => {
+                  if (onClearAllApplications) {
+                    onClearAllApplications()
+                    onClose()
+                  }
+                }}
+                disabled={applicationCount === 0}
+                style={{
+                  backgroundColor: applicationCount > 0 ? '#dc2626' : undefined,
+                  color: applicationCount > 0 ? 'white' : undefined,
+                  opacity: applicationCount === 0 ? 0.5 : 1,
+                  cursor: applicationCount === 0 ? 'not-allowed' : 'pointer'
+                }}
+              >
+                Clear All
+              </button>
             </div>
           </div>
         </div>

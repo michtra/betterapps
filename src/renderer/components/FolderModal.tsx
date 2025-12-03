@@ -43,7 +43,7 @@ export function FolderModal({ onSave, onClose }: Props) {
           </div>
           <div className="form-group">
             <label>Color</label>
-            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '12px' }}>
               {PRESET_COLORS.map(c => (
                 <button
                   key={c}
@@ -59,6 +59,26 @@ export function FolderModal({ onSave, onClose }: Props) {
                   onClick={() => setColor(c)}
                 />
               ))}
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <label style={{ margin: 0, fontSize: '14px', color: '#6b7280' }}>
+                Custom color:
+              </label>
+              <input
+                type="color"
+                value={color}
+                onChange={(e) => setColor(e.target.value)}
+                style={{
+                  width: '50px',
+                  height: '40px',
+                  border: '2px solid #e5e7eb',
+                  borderRadius: '8px',
+                  cursor: 'pointer'
+                }}
+              />
+              <span style={{ fontSize: '13px', color: '#9ca3af', fontFamily: 'monospace' }}>
+                {color.toUpperCase()}
+              </span>
             </div>
           </div>
           <div className="modal-footer">

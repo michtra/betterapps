@@ -22,6 +22,7 @@ export interface Folder {
   name: string
   color: string
   createdAt: string
+  order?: number
 }
 
 export type FieldType = 'text' | 'number' | 'date' | 'dropdown'

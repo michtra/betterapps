@@ -17,6 +17,7 @@ import { SettingsModal } from './components/SettingsModal'
 import { DraggableRow } from './components/DraggableRow'
 import { DroppableFolder } from './components/DroppableFolder'
 import { DndContext, DragEndEvent, useSensor, useSensors, PointerSensor } from '@dnd-kit/core'
+import { SortableContext, arrayMove, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { CustomColumn } from './types'
 
 function App() {
@@ -44,6 +45,7 @@ function App() {
   const [backgroundColor, setBackgroundColor] = useState('#f8f9fa')
   const [backgroundColorSecondary, setBackgroundColorSecondary] = useState('#ffffff')
   const [draggedApp, setDraggedApp] = useState<JobApplication | null>(null)
+  const [selectedApplications, setSelectedApplications] = useState<Set<string>>(new Set())
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -79,7 +81,14 @@ function App() {
   const loadData = async () => {
     const data: AppData = await window.electronAPI.loadData()
     setApplications(data.applications || [])
-    setFolders(data.folders || [])
+
+    const loadedFolders = data.folders || []
+    const foldersWithOrder = loadedFolders.map((folder, index) => ({
+      ...folder,
+      order: folder.order !== undefined ? folder.order : index
+    })).sort((a, b) => (a.order || 0) - (b.order || 0))
+    setFolders(foldersWithOrder)
+
     if (data.settings?.visibleColumns?.length > 0) {
       setVisibleColumns(data.settings.visibleColumns)
     }
@@ -135,7 +144,47 @@ function App() {
   const deleteApplication = (id: string) => {
     const updated = applications.filter(app => app.id !== id)
     setApplications(updated)
+    setSelectedApplications(new Set())
     saveData(updated)
+  }
+
+  const bulkDeleteApplications = () => {
+    if (selectedApplications.size === 0) return
+
+    if (confirm(`Delete ${selectedApplications.size} selected application(s)?`)) {
+      const updated = applications.filter(app => !selectedApplications.has(app.id))
+      setApplications(updated)
+      setSelectedApplications(new Set())
+      saveData(updated)
+    }
+  }
+
+  const clearAllApplications = () => {
+    if (applications.length === 0) return
+
+    if (confirm(`Delete ALL ${applications.length} application(s)? This action cannot be undone.`)) {
+      setApplications([])
+      setSelectedApplications(new Set())
+      saveData([])
+    }
+  }
+
+  const toggleSelectApplication = (id: string) => {
+    const newSelected = new Set(selectedApplications)
+    if (newSelected.has(id)) {
+      newSelected.delete(id)
+    } else {
+      newSelected.add(id)
+    }
+    setSelectedApplications(newSelected)
+  }
+
+  const toggleSelectAll = () => {
+    if (selectedApplications.size === filteredApplications.length) {
+      setSelectedApplications(new Set())
+    } else {
+      setSelectedApplications(new Set(filteredApplications.map(app => app.id)))
+    }
   }
 
   const addFolder = (name: string, color: string) => {
@@ -143,7 +192,8 @@ function App() {
       id: crypto.randomUUID(),
       name,
       color,
-      createdAt: new Date().toISOString()
+      createdAt: new Date().toISOString(),
+      order: folders.length
     }
     const updated = [...folders, newFolder]
     setFolders(updated)
@@ -162,6 +212,10 @@ function App() {
     }
     saveData(updatedApplications, updatedFolders)
   }
+
+  useEffect(() => {
+    setSelectedApplications(new Set())
+  }, [selectedFolder, searchQuery])
 
   const filteredApplications = useMemo(() => {
     let filtered = applications
@@ -276,12 +330,32 @@ function App() {
 
     if (!over) return
 
-    const appId = active.id as string
-    const folderId = over.id === 'all' ? null : over.id as string
+    const activeId = active.id as string
+    const overId = over.id as string
 
-    const app = applications.find(a => a.id === appId)
+    // Check if we're dragging a folder
+    const draggedFolder = folders.find(f => f.id === activeId)
+    if (draggedFolder) {
+      // Handle folder reordering
+      const oldIndex = folders.findIndex(f => f.id === activeId)
+      const newIndex = folders.findIndex(f => f.id === overId)
+
+      if (oldIndex !== newIndex) {
+        const reorderedFolders = arrayMove(folders, oldIndex, newIndex).map((folder, index) => ({
+          ...folder,
+          order: index
+        }))
+        setFolders(reorderedFolders)
+        saveData(undefined, reorderedFolders)
+      }
+      return
+    }
+
+    // Otherwise, handle application dragging to folders
+    const folderId = overId === 'all' ? null : overId
+    const app = applications.find(a => a.id === activeId)
     if (app && app.folderId !== folderId) {
-      updateApplication(appId, { folderId })
+      updateApplication(activeId, { folderId })
     }
   }
 
@@ -345,31 +419,37 @@ function App() {
                 <span className="folder-name" onClick={() => setSelectedFolder(null)}>All Applications</span>
                 <span className="folder-count" onClick={() => setSelectedFolder(null)}>{applications.length}</span>
               </DroppableFolder>
-              {folders.map(folder => (
-                <DroppableFolder
-                  key={folder.id}
-                  id={folder.id}
-                  className={`folder-item ${selectedFolder === folder.id ? 'active' : ''}`}
-                >
-                  <div className="folder-color" style={{ backgroundColor: folder.color }} />
-                  <span className="folder-name" onClick={() => setSelectedFolder(folder.id)}>{folder.name}</span>
-                  <span className="folder-count" onClick={() => setSelectedFolder(folder.id)}>
-                    {applications.filter(app => app.folderId === folder.id).length}
-                  </span>
-                  <button
-                    className="folder-delete"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      if (confirm(`Delete folder "${folder.name}"? Applications will be moved to "All Applications".`)) {
-                        deleteFolder(folder.id)
-                      }
-                    }}
-                    title="Delete folder"
+              <SortableContext
+                items={folders.map(f => f.id)}
+                strategy={verticalListSortingStrategy}
+              >
+                {folders.map(folder => (
+                  <DroppableFolder
+                    key={folder.id}
+                    id={folder.id}
+                    sortable={true}
+                    className={`folder-item ${selectedFolder === folder.id ? 'active' : ''}`}
                   >
-                    ×
-                  </button>
-                </DroppableFolder>
-              ))}
+                    <div className="folder-color" style={{ backgroundColor: folder.color }} />
+                    <span className="folder-name" onClick={() => setSelectedFolder(folder.id)}>{folder.name}</span>
+                    <span className="folder-count" onClick={() => setSelectedFolder(folder.id)}>
+                      {applications.filter(app => app.folderId === folder.id).length}
+                    </span>
+                    <button
+                      className="folder-delete"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        if (confirm(`Delete folder "${folder.name}"? Applications will be moved to "All Applications".`)) {
+                          deleteFolder(folder.id)
+                        }
+                      }}
+                      title="Delete folder"
+                    >
+                      ×
+                    </button>
+                  </DroppableFolder>
+                ))}
+              </SortableContext>
             </ul>
             <button
               className="btn btn-secondary btn-small"
@@ -392,6 +472,20 @@ function App() {
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
             </div>
+            {selectedApplications.size > 0 && (
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                <span style={{ fontSize: '14px', color: '#6b7280' }}>
+                  {selectedApplications.size} selected
+                </span>
+                <button
+                  className="btn btn-secondary btn-small"
+                  onClick={bulkDeleteApplications}
+                  style={{ backgroundColor: '#ef4444', color: 'white' }}
+                >
+                  Delete Selected
+                </button>
+              </div>
+            )}
           </div>
 
           <div className="table-container">
@@ -406,6 +500,14 @@ function App() {
               <table className="applications-table">
                 <thead>
                   <tr>
+                    <th style={{ width: '50px' }}>
+                      <input
+                        type="checkbox"
+                        checked={filteredApplications.length > 0 && selectedApplications.size === filteredApplications.length}
+                        onChange={toggleSelectAll}
+                        style={{ cursor: 'pointer' }}
+                      />
+                    </th>
                     {allVisibleColumns.map(col => (
                       <th key={col.id} onClick={() => handleSort(col.id as any)}>
                         {col.label} {sortBy === col.id && (sortDesc ? '↓' : '↑')}
@@ -417,6 +519,14 @@ function App() {
                 <tbody>
                   {filteredApplications.map(app => (
                     <DraggableRow key={app.id} id={app.id} onClick={() => handleEdit(app)}>
+                      <td onClick={(e) => e.stopPropagation()}>
+                        <input
+                          type="checkbox"
+                          checked={selectedApplications.has(app.id)}
+                          onChange={() => toggleSelectApplication(app.id)}
+                          style={{ cursor: 'pointer' }}
+                        />
+                      </td>
                       {allVisibleColumns.map(col => (
                         <td key={col.id}>
                           {col.id === 'status' ? (
@@ -579,6 +689,8 @@ function App() {
             if (settings.backgroundColorSecondary) setBackgroundColorSecondary(settings.backgroundColorSecondary)
           }}
           onClose={() => setShowSettingsModal(false)}
+          onClearAllApplications={clearAllApplications}
+          applicationCount={applications.length}
         />
       )}
     </div>
