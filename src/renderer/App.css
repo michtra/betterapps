@@ -203,6 +203,14 @@ body.dark-mode .dropdown-item {
   color: #e5e7eb;
 }
 
+body.dark-mode .folder-edit {
+  color: #9ca3af;
+}
+
+body.dark-mode .folder-edit:hover {
+  color: var(--accent-color);
+}
+
 body.dark-mode .folder-delete {
   color: #ef4444;
 }
@@ -327,6 +335,17 @@ body.dark-mode .folder-delete:hover {
   gap: 8px;
   margin-bottom: 4px;
   transition: background 0.15s ease;
+  cursor: pointer;
+}
+
+.folder-content {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: -8px -12px;
+  padding: 8px 12px;
+  margin-right: 8px;
 }
 
 .folder-item:hover {
@@ -361,6 +380,18 @@ body.dark-mode .folder-delete:hover {
   cursor: pointer;
 }
 
+.folder-edit {
+  background: none;
+  border: none;
+  color: #6b7280;
+  font-size: 16px;
+  cursor: pointer;
+  padding: 0 4px;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  line-height: 1;
+}
+
 .folder-delete {
   background: none;
   border: none;
@@ -373,8 +404,13 @@ body.dark-mode .folder-delete:hover {
   line-height: 1;
 }
 
+.folder-item:hover .folder-edit,
 .folder-item:hover .folder-delete {
   opacity: 1;
+}
+
+.folder-edit:hover {
+  color: var(--accent-color);
 }
 
 .folder-delete:hover {
@@ -457,6 +493,26 @@ body.dark-mode .folder-drop-active {
   background: var(--bg-secondary);
   margin: 0;
   border-radius: 0;
+}
+
+.content-area.has-wallpaper .toolbar {
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(10px);
+}
+
+.content-area.has-wallpaper .table-container {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(10px);
+}
+
+body.dark-mode .content-area.has-wallpaper .toolbar {
+  background: rgba(38, 38, 38, 0.8);
+  backdrop-filter: blur(10px);
+}
+
+body.dark-mode .content-area.has-wallpaper .table-container {
+  background: rgba(38, 38, 38, 0.85);
+  backdrop-filter: blur(10px);
 }
 
 .applications-table {

@@ -5,11 +5,12 @@ interface Props {
   application: JobApplication | null
   folders: Folder[]
   customColumns: CustomColumn[]
+  defaultFolderId?: string | null
   onSave: (app: Omit<JobApplication, 'id' | 'createdAt' | 'updatedAt'>) => void
   onClose: () => void
 }
 
-export function ApplicationModal({ application, folders, customColumns, onSave, onClose }: Props) {
+export function ApplicationModal({ application, folders, customColumns, defaultFolderId, onSave, onClose }: Props) {
   const [company, setCompany] = useState(application?.company || '')
   const [position, setPosition] = useState(application?.position || '')
   const [status, setStatus] = useState<ApplicationStatus>(application?.status || 'Wishlist')
@@ -21,7 +22,9 @@ export function ApplicationModal({ application, folders, customColumns, onSave, 
   const [location, setLocation] = useState(application?.location || '')
   const [salary, setSalary] = useState(application?.salary || '')
   const [notes, setNotes] = useState(application?.notes || '')
-  const [folderId, setFolderId] = useState<string | null>(application?.folderId || null)
+  const [folderId, setFolderId] = useState<string | null>(
+    application?.folderId !== undefined ? application.folderId : (defaultFolderId !== undefined ? defaultFolderId : null)
+  )
   const [customFields, setCustomFields] = useState<Record<string, any>>(application?.customFields || {})
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -82,6 +85,7 @@ export function ApplicationModal({ application, folders, customColumns, onSave, 
             >
               <option value="Wishlist">Wishlist</option>
               <option value="Applied">Applied</option>
+              <option value="In Progress">In Progress</option>
               <option value="Interview">Interview</option>
               <option value="Offer">Offer</option>
               <option value="Rejected">Rejected</option>

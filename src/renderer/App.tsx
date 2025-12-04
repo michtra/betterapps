@@ -36,6 +36,7 @@ function App() {
   const [showSettingsModal, setShowSettingsModal] = useState(false)
   const [customColumns, setCustomColumns] = useState<CustomColumn[]>([])
   const [editingApplication, setEditingApplication] = useState<JobApplication | null>(null)
+  const [editingFolder, setEditingFolder] = useState<Folder | null>(null)
   const [sortBy, setSortBy] = useState<keyof JobApplication>('dateApplied')
   const [sortDesc, setSortDesc] = useState(true)
   const [showExportDropdown, setShowExportDropdown] = useState(false)
@@ -191,15 +192,24 @@ function App() {
     }
   }
 
-  const addFolder = (name: string, color: string) => {
+  const addFolder = (name: string, color: string, wallpaper?: string) => {
     const newFolder: Folder = {
       id: crypto.randomUUID(),
       name,
       color,
+      wallpaper,
       createdAt: new Date().toISOString(),
       order: folders.length
     }
     const updated = [...folders, newFolder]
+    setFolders(updated)
+    saveData(undefined, updated)
+  }
+
+  const updateFolder = (id: string, name: string, color: string, wallpaper?: string) => {
+    const updated = folders.map(f =>
+      f.id === id ? { ...f, name, color, wallpaper } : f
+    )
     setFolders(updated)
     saveData(undefined, updated)
   }
@@ -367,6 +377,18 @@ function App() {
   const visibleCustomColumns = customColumns.filter(col => col.visible)
   const allVisibleColumns = [...visibleColumnsConfig, ...visibleCustomColumns.map(col => ({ ...col, id: col.id as any }))]
 
+  const currentFolder = selectedFolder ? folders.find(f => f.id === selectedFolder) : null
+  const contentAreaStyle: React.CSSProperties = currentFolder?.wallpaper
+    ? currentFolder.wallpaper.startsWith('data:image')
+      ? {
+          backgroundImage: `url(${currentFolder.wallpaper})`,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          backgroundRepeat: 'no-repeat'
+        }
+      : { backgroundColor: currentFolder.wallpaper }
+    : {}
+
   return (
     <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
     <div className="app">
@@ -419,9 +441,10 @@ function App() {
               <DroppableFolder
                 id="all"
                 className={`folder-item ${selectedFolder === null ? 'active' : ''}`}
+                onClick={() => setSelectedFolder(null)}
               >
-                <span className="folder-name" onClick={() => setSelectedFolder(null)}>All Applications</span>
-                <span className="folder-count" onClick={() => setSelectedFolder(null)}>{applications.length}</span>
+                <span className="folder-name">All Applications</span>
+                <span className="folder-count">{applications.length}</span>
               </DroppableFolder>
               <SortableContext
                 items={folders.map(f => f.id)}
@@ -434,11 +457,31 @@ function App() {
                     sortable={true}
                     className={`folder-item ${selectedFolder === folder.id ? 'active' : ''}`}
                   >
-                    <div className="folder-color" style={{ backgroundColor: folder.color }} />
-                    <span className="folder-name" onClick={() => setSelectedFolder(folder.id)}>{folder.name}</span>
-                    <span className="folder-count" onClick={() => setSelectedFolder(folder.id)}>
-                      {applications.filter(app => app.folderId === folder.id).length}
-                    </span>
+                    <div
+                      className="folder-content"
+                      onClick={(e) => {
+                        if (e.target === e.currentTarget || (e.target as HTMLElement).classList.contains('folder-name') || (e.target as HTMLElement).classList.contains('folder-count') || (e.target as HTMLElement).classList.contains('folder-color')) {
+                          setSelectedFolder(folder.id)
+                        }
+                      }}
+                    >
+                      <div className="folder-color" style={{ backgroundColor: folder.color }} />
+                      <span className="folder-name">{folder.name}</span>
+                      <span className="folder-count">
+                        {applications.filter(app => app.folderId === folder.id).length}
+                      </span>
+                    </div>
+                    <button
+                      className="folder-edit"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setEditingFolder(folder)
+                        setShowFolderModal(true)
+                      }}
+                      title="Rename folder"
+                    >
+                      ✎
+                    </button>
                     <button
                       className="folder-delete"
                       onClick={(e) => {
@@ -465,7 +508,7 @@ function App() {
           </div>
         </aside>
 
-        <div className="content-area">
+        <div className={`content-area ${currentFolder?.wallpaper ? 'has-wallpaper' : ''}`} style={contentAreaStyle}>
           <div className="toolbar">
             <div className="search-box">
               <input
@@ -615,6 +658,7 @@ function App() {
           application={editingApplication}
           folders={folders}
           customColumns={customColumns}
+          defaultFolderId={editingApplication ? undefined : selectedFolder}
           onSave={(app) => {
             if (editingApplication) {
               updateApplication(editingApplication.id, app)
@@ -663,11 +707,20 @@ function App() {
 
       {showFolderModal && (
         <FolderModal
-          onSave={(name, color) => {
-            addFolder(name, color)
+          folder={editingFolder}
+          onSave={(name, color, wallpaper) => {
+            if (editingFolder) {
+              updateFolder(editingFolder.id, name, color, wallpaper)
+            } else {
+              addFolder(name, color, wallpaper)
+            }
             setShowFolderModal(false)
+            setEditingFolder(null)
           }}
-          onClose={() => setShowFolderModal(false)}
+          onClose={() => {
+            setShowFolderModal(false)
+            setEditingFolder(null)
+          }}
         />
       )}
 

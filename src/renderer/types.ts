@@ -1,4 +1,4 @@
-export type ApplicationStatus = 'Applied' | 'Interview' | 'Rejected' | 'Offer' | 'Wishlist'
+export type ApplicationStatus = 'Applied' | 'In Progress' | 'Interview' | 'Rejected' | 'Offer' | 'Wishlist'
 
 export interface JobApplication {
   id: string
@@ -21,6 +21,7 @@ export interface Folder {
   id: string
   name: string
   color: string
+  wallpaper?: string
   createdAt: string
   order?: number
 }
@@ -80,6 +81,7 @@ export const DEFAULT_COLUMNS: ColumnConfig[] = [
 
 export const STATUS_COLORS: Record<ApplicationStatus, string> = {
   'Applied': '#3b82f6',
+  'In Progress': '#14b8a6',
   'Interview': '#f59e0b',
   'Rejected': '#ef4444',
   'Offer': '#10b981',
