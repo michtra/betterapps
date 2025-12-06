@@ -1,5 +1,11 @@
 export type ApplicationStatus = 'Applied' | 'In Progress' | 'Interview' | 'Rejected' | 'Offer' | 'Wishlist'
 
+export interface ApplicationStep {
+  id: string
+  label: string
+  completed: boolean
+}
+
 export interface JobApplication {
   id: string
   company: string
@@ -15,6 +21,7 @@ export interface JobApplication {
   createdAt: string
   updatedAt: string
   customFields?: Record<string, any>
+  steps?: ApplicationStep[]
 }
 
 export interface Folder {
@@ -24,6 +31,13 @@ export interface Folder {
   wallpaper?: string
   createdAt: string
   order?: number
+}
+
+export interface TodoItem {
+  id: string
+  text: string
+  completed: boolean
+  createdAt: string
 }
 
 export type FieldType = 'text' | 'number' | 'date' | 'dropdown'
@@ -55,6 +69,7 @@ export interface ThemeSettings {
 export interface AppData {
   applications: JobApplication[]
   folders: Folder[]
+  todos?: TodoItem[]
   settings: {
     visibleColumns: string[]
     darkMode?: boolean

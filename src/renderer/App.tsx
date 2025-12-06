@@ -6,7 +6,8 @@ import {
   AppData,
   DEFAULT_COLUMNS,
   ApplicationStatus,
-  STATUS_COLORS
+  STATUS_COLORS,
+  TodoItem
 } from './types'
 import { ApplicationModal } from './components/ApplicationModal'
 import { ColumnToggle } from './components/ColumnToggle'
@@ -16,13 +17,16 @@ import { CustomColumnsModal } from './components/CustomColumnsModal'
 import { SettingsModal } from './components/SettingsModal'
 import { DraggableRow } from './components/DraggableRow'
 import { DroppableFolder } from './components/DroppableFolder'
+import { TodoTab } from './components/TodoTab'
+import { ApplicationStepsDropdown } from './components/ApplicationStepsDropdown'
 import { DndContext, DragEndEvent, useSensor, useSensors, PointerSensor } from '@dnd-kit/core'
 import { SortableContext, arrayMove, verticalListSortingStrategy } from '@dnd-kit/sortable'
-import { CustomColumn } from './types'
+import { CustomColumn, ApplicationStep } from './types'
 
 function App() {
   const [applications, setApplications] = useState<JobApplication[]>([])
   const [folders, setFolders] = useState<Folder[]>([])
+  const [todos, setTodos] = useState<TodoItem[]>([])
   const [visibleColumns, setVisibleColumns] = useState<string[]>(
     DEFAULT_COLUMNS.filter(c => c.visible).map(c => c.id)
   )
@@ -79,6 +83,69 @@ function App() {
     saveData()
   }, [darkMode, visibleColumns, customColumns, accentColor, accentColorHover, backgroundColor, backgroundColorSecondary])
 
+  useEffect(() => {
+    // Sync applications with todo list
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+
+    // Find unfinished applications (not Rejected, not Offer) with upcoming deadlines
+    const unfinishedApps = applications.filter(app => {
+      if (app.status === 'Rejected' || app.status === 'Offer') {
+        return false
+      }
+
+      if (!app.deadline) {
+        return false
+      }
+
+      const deadline = new Date(app.deadline)
+      deadline.setHours(0, 0, 0, 0)
+
+      // Include if deadline is today or in the future
+      return deadline >= today
+    })
+
+    // Get existing todo IDs that are linked to applications (format: "app-{appId}")
+    const existingAppTodoIds = new Set(
+      todos.filter(t => t.id.startsWith('app-')).map(t => t.id)
+    )
+
+    // Get current application IDs that should have todos
+    const currentAppIds = new Set(unfinishedApps.map(app => `app-${app.id}`))
+
+    // Remove todos for applications that no longer qualify
+    const todosToKeep = todos.filter(todo => {
+      if (!todo.id.startsWith('app-')) {
+        return true // Keep manual todos
+      }
+      return currentAppIds.has(todo.id) // Keep only if app still qualifies
+    })
+
+    // Add new todos for applications that don't have them yet
+    const newTodos = unfinishedApps
+      .filter(app => !existingAppTodoIds.has(`app-${app.id}`))
+      .map(app => {
+        const deadline = new Date(app.deadline)
+        const daysUntil = Math.ceil((deadline.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
+        const urgency = daysUntil === 0 ? '(Due today!)' : daysUntil === 1 ? '(Due tomorrow)' : `(${daysUntil} days left)`
+
+        return {
+          id: `app-${app.id}`,
+          text: `${app.company} - ${app.position} ${urgency}`,
+          completed: false,
+          createdAt: new Date().toISOString()
+        }
+      })
+
+    const updated = [...todosToKeep, ...newTodos]
+
+    // Only update if there are changes
+    if (updated.length !== todos.length || newTodos.length > 0) {
+      setTodos(updated)
+      saveData(undefined, undefined, updated)
+    }
+  }, [applications])
+
   const loadData = async () => {
     const data: AppData = await window.electronAPI.loadData()
     setApplications(data.applications || [])
@@ -89,6 +156,8 @@ function App() {
       order: folder.order !== undefined ? folder.order : index
     })).sort((a, b) => (a.order || 0) - (b.order || 0))
     setFolders(foldersWithOrder)
+
+    setTodos(data.todos || [])
 
     if (data.settings?.visibleColumns?.length > 0) {
       setVisibleColumns(data.settings.visibleColumns)
@@ -113,10 +182,11 @@ function App() {
     }
   }
 
-  const saveData = async (updatedApplications?: JobApplication[], updatedFolders?: Folder[]) => {
+  const saveData = async (updatedApplications?: JobApplication[], updatedFolders?: Folder[], updatedTodos?: TodoItem[]) => {
     const data: AppData = {
       applications: updatedApplications || applications,
       folders: updatedFolders || folders,
+      todos: updatedTodos || todos,
       settings: { visibleColumns, darkMode, customColumns, accentColor, accentColorHover, backgroundColor, backgroundColorSecondary }
     }
     const result = await window.electronAPI.saveData(data)
@@ -141,6 +211,14 @@ function App() {
   const updateApplication = (id: string, updates: Partial<JobApplication>) => {
     const updated = applications.map(app =>
       app.id === id ? { ...app, ...updates, updatedAt: new Date().toISOString() } : app
+    )
+    setApplications(updated)
+    saveData(updated)
+  }
+
+  const updateApplicationSteps = (id: string, steps: ApplicationStep[]) => {
+    const updated = applications.map(app =>
+      app.id === id ? { ...app, steps, updatedAt: new Date().toISOString() } : app
     )
     setApplications(updated)
     saveData(updated)
@@ -203,6 +281,7 @@ function App() {
     }
     const updated = [...folders, newFolder]
     setFolders(updated)
+    setSelectedFolder(newFolder.id)
     saveData(undefined, updated)
   }
 
@@ -225,6 +304,37 @@ function App() {
       setSelectedFolder(null)
     }
     saveData(updatedApplications, updatedFolders)
+  }
+
+  const addTodo = (text: string) => {
+    const newTodo: TodoItem = {
+      id: crypto.randomUUID(),
+      text,
+      completed: false,
+      createdAt: new Date().toISOString()
+    }
+    const updated = [...todos, newTodo]
+    setTodos(updated)
+    saveData(undefined, undefined, updated)
+  }
+
+  const toggleTodo = (id: string) => {
+    const updated = todos.map(todo =>
+      todo.id === id ? { ...todo, completed: !todo.completed } : todo
+    )
+    setTodos(updated)
+    saveData(undefined, undefined, updated)
+  }
+
+  const deleteTodo = (id: string) => {
+    // Prevent deleting application-based todos
+    if (id.startsWith('app-')) {
+      alert('Application deadlines are automatically managed. To remove this item, update the application status to Rejected/Offer or remove the deadline.')
+      return
+    }
+    const updated = todos.filter(todo => todo.id !== id)
+    setTodos(updated)
+    saveData(undefined, undefined, updated)
   }
 
   useEffect(() => {
@@ -560,6 +670,7 @@ function App() {
                         {col.label} {sortBy === col.id && (sortDesc ? '↓' : '↑')}
                       </th>
                     ))}
+                    <th style={{ width: '140px' }}>Progress</th>
                     <th style={{ width: '80px' }}>Actions</th>
                   </tr>
                 </thead>
@@ -631,6 +742,12 @@ function App() {
                           )}
                         </td>
                       ))}
+                      <td onClick={(e) => e.stopPropagation()}>
+                        <ApplicationStepsDropdown
+                          steps={app.steps || []}
+                          onUpdateSteps={(steps) => updateApplicationSteps(app.id, steps)}
+                        />
+                      </td>
                       <td>
                         <button
                           className="delete-btn"
@@ -750,6 +867,13 @@ function App() {
           applicationCount={applications.length}
         />
       )}
+
+      <TodoTab
+        todos={todos}
+        onAddTodo={addTodo}
+        onToggleTodo={toggleTodo}
+        onDeleteTodo={deleteTodo}
+      />
     </div>
     </DndContext>
   )

@@ -1,0 +1,225 @@
+.todo-tab {
+  position: fixed;
+  bottom: 0;
+  right: 20px;
+  width: 350px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color, #e5e7eb);
+  border-bottom: none;
+  border-radius: 8px 8px 0 0;
+  box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease;
+  z-index: 1000;
+}
+
+.todo-tab.minimized {
+  height: 40px;
+}
+
+.todo-tab.expanded {
+  height: 400px;
+}
+
+.todo-tab-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 15px;
+  background: var(--accent-color);
+  color: white;
+  cursor: pointer;
+  user-select: none;
+  border-radius: 8px 8px 0 0;
+  font-weight: 500;
+}
+
+.todo-tab-header:hover {
+  background: var(--accent-color-hover);
+}
+
+.todo-tab-toggle {
+  background: none;
+  border: none;
+  color: white;
+  font-size: 20px;
+  cursor: pointer;
+  padding: 0;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: background 0.2s;
+}
+
+.todo-tab-toggle:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.todo-tab-content {
+  padding: 15px;
+  height: calc(100% - 40px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.todo-input-form {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 15px;
+}
+
+.todo-input {
+  flex: 1;
+  padding: 8px 12px;
+  border: 1px solid var(--border-color, #e5e7eb);
+  border-radius: 4px;
+  font-size: 14px;
+  background: var(--bg-primary);
+  color: var(--text-primary, #1f2937);
+}
+
+.dark-mode .todo-input {
+  background: #374151;
+  color: #f9fafb;
+  border-color: #4b5563;
+}
+
+.todo-input:focus {
+  outline: none;
+  border-color: var(--accent-color);
+}
+
+.todo-add-btn {
+  padding: 8px 16px;
+  background: var(--accent-color);
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.todo-add-btn:hover {
+  background: var(--accent-color-hover);
+}
+
+.todo-list {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.todo-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.todo-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.todo-list::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 3px;
+}
+
+.dark-mode .todo-list::-webkit-scrollbar-thumb {
+  background: #4b5563;
+}
+
+.todo-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color, #e5e7eb);
+  border-radius: 4px;
+  transition: all 0.2s;
+}
+
+.dark-mode .todo-item {
+  background: #374151;
+  border-color: #4b5563;
+}
+
+.todo-item:hover {
+  border-color: var(--accent-color);
+}
+
+.todo-item.completed {
+  opacity: 0.6;
+}
+
+.todo-item.completed .todo-text {
+  text-decoration: line-through;
+}
+
+.todo-item.auto-generated {
+  border-left: 3px solid var(--accent-color);
+  background: linear-gradient(90deg, rgba(59, 130, 246, 0.05) 0%, var(--bg-primary) 100%);
+}
+
+.dark-mode .todo-item.auto-generated {
+  background: linear-gradient(90deg, rgba(59, 130, 246, 0.1) 0%, #374151 100%);
+}
+
+.auto-badge {
+  opacity: 0.7;
+  font-size: 12px;
+}
+
+.todo-checkbox {
+  cursor: pointer;
+  width: 18px;
+  height: 18px;
+  accent-color: var(--accent-color);
+}
+
+.todo-text {
+  flex: 1;
+  font-size: 14px;
+  color: var(--text-primary, #1f2937);
+  word-break: break-word;
+}
+
+.dark-mode .todo-text {
+  color: #f9fafb;
+}
+
+.todo-delete-btn {
+  background: none;
+  border: none;
+  color: #ef4444;
+  font-size: 24px;
+  cursor: pointer;
+  padding: 0;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: background 0.2s;
+  line-height: 1;
+}
+
+.todo-delete-btn:hover {
+  background: rgba(239, 68, 68, 0.1);
+}
+
+.todo-empty {
+  text-align: center;
+  padding: 40px 20px;
+  color: var(--text-secondary, #6b7280);
+  font-size: 14px;
+}
+
+.dark-mode .todo-empty {
+  color: #9ca3af;
+}
