@@ -37,7 +37,7 @@ npm install
 
 Run the app in development mode:
 ```bash
-npm run dev
+npm start
 ```
 
 ### Building
